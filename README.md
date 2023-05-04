@@ -1,15 +1,3 @@
-# Analyze
-
-<p align='center'>
-  <img src='contents/images/banner.png'>
-  <em>Banner designed by <a href="https://dribbble.com/levine" alt="iOS Source code analyze">Levine</a></em>
-</p>
-
-## 为什么要建这个仓库
-
-欢迎使用 RSS 订阅我的博客 [点击订阅](http://draveness.me/feed.xml)
-
-世人都说阅读开源框架的源代码对于功力有显著的提升，所以我也尝试阅读开源框架的源代码，并对其内容进行详细地分析和理解。在这里将自己阅读开源框架源代码的心得记录下来，希望能对各位开发者有所帮助。我会不断更新这个仓库中的文章，如果想要关注可以点 `star`。
 
 ## 目录
 
@@ -42,14 +30,6 @@ Latest：
 | MBProgressHUD |   | [iOS 源代码分析 --- MBProgressHUD](contents/MBProgressHUD/iOS%20源代码分析%20---%20MBProgressHUD.md) |
 | Masonry |   | [iOS 源代码分析 --- Masonry](contents/Masonry/iOS%20源代码分析%20---%20Masonry.md) |
 | Redis | 3.2.5  | [Redis 和 I/O 多路复用](contents/Redis/redis-io-multiplexing.md) <br> [Redis 中的事件循环](contents/Redis/redis-eventloop.md)  <br> [Redis 是如何处理命令的（客户端）](contents/Redis/redis-cli)|
-
-## 微信公众号
-
-![](https://img.draveness.me/2020-03-11-15839264230785-wechat-qr-code.png)
-
-## 勘误
-
-+ 如果在文章中发现了问题，欢迎提交 PR 或者 issue
 
 ## 转载
 
