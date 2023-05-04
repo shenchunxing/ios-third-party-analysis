@@ -4,7 +4,7 @@ https://github.com/dzenbot/DZNEmptyDataSet
 项目中详细使用参考官方demo：
 https://github.com/dzenbot/DZNEmptyDataSet/tree/master/DZNEmptyDataSet/Applications
 
-<img src=https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cf8bd10d241a472788ff928d38d0a5b7~tplv-k3u1fbpfcp-watermark.image?/height="100">
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cf8bd10d241a472788ff928d38d0a5b7~tplv-k3u1fbpfcp-watermark.image?)
 
 
 对scrollView、tableView、collectionView设置
