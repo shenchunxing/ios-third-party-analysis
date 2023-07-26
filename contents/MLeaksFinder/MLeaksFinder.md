@@ -47,7 +47,7 @@
     if ([[NSObject classNamesWhitelist] containsObject:className])
         return NO;
     
-    //如果是sendAction的方式，不需要检测内存泄漏
+    //在使用sendAction方式时，由于事件的传递和处理是由UIKit内部机制完成的，其内部会自动处理相关对象的引用计数。当事件处理完成后，相关对象会自动释放，避免出现内存泄漏的情况。
     NSNumber *senderPtr = objc_getAssociatedObject([UIApplication sharedApplication], kLatestSenderKey);
     if ([senderPtr isEqualToNumber:@((uintptr_t)self)])
         return NO;
@@ -98,7 +98,7 @@
     [[self classNamesWhitelist] addObjectsFromArray:classNames];
 }
 ```
--   第二步：判断该对象是否是上一次发送action的对象，是的话，不进行内存检测 （也就是指调用sendAction:to:from:forEvent方法，这个是不需要进行内存检测）
+-   第二步：判断该对象是否是上一次发送action的对象，是的话，不进行内存检测 （也就是指调用sendAction:to:from:forEvent方法时，由于事件的传递和处理是由UIKit内部机制完成的，其内部会自动处理相关对象的引用计数。当事件处理完成后，相关对象会自动释放，避免出现内存泄漏的情况。）
 
 ```
     NSNumber *senderPtr = objc_getAssociatedObject([UIApplication sharedApplication], kLatestSenderKey);
@@ -112,6 +112,7 @@ __weak id weakSelf = self;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         __strong id strongSelf = weakSelf;
         //2秒后判断对象是否还存在，存在的话说明存在内存泄露，放调用成功，不存在就是nil
+        //注意：这里strongSelf一般不会为nil，除非self本身已经被释放了。这里就是为了检测self是否被释放。如果被释放，则strongSelf也是nil
         [strongSelf assertNotDealloc];
     });
 ```
@@ -131,10 +132,15 @@ __weak id weakSelf = self;
 - (void)willReleaseChildren:(NSArray *)children {
     NSArray *viewStack = [self viewStack];
     NSSet *parentPtrs = [self parentPtrs];
+    //这里的操作是为了弹出的alertview，可以正确显示视图层次用‘->’表示
     for (id child in children) {
+        //获取类名
         NSString *className = NSStringFromClass([child class]);
+        //记录该类在视图层次中的位置
         [child setViewStack:[viewStack arrayByAddingObject:className]];
+        //记录子对象的父对象指针集合
         [child setParentPtrs:[parentPtrs setByAddingObject:@((uintptr_t)child)]];
+        //子对象释放
         [child willDealloc];
     }
 }
@@ -144,6 +150,7 @@ __weak id weakSelf = self;
 这里结合源码看下`viewStack`与`parentPtrs`的get和set实现方法
 
 ```
+获取视图层次
 - (NSArray *)viewStack {
     NSArray *viewStack = objc_getAssociatedObject(self, kViewStackKey);
     if (viewStack) {
@@ -158,6 +165,7 @@ __weak id weakSelf = self;
     objc_setAssociatedObject(self, kViewStackKey, viewStack, OBJC_ASSOCIATION_RETAIN);
 }
 
+//父对象指针的集合
 - (NSSet *)parentPtrs {
     NSSet *parentPtrs = objc_getAssociatedObject(self, kParentPtrsKey);
     if (!parentPtrs) {
@@ -197,13 +205,14 @@ __weak id weakSelf = self;
     
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        //leakedObjectPtrs指的是被怀疑有内存泄露的对象集合
         leakedObjectPtrs = [[NSMutableSet alloc] init];
     });
-    
+    //集合为空，说明没有需要检查的对象指针，表示没有内存泄露
     if (!ptrs.count) {
         return NO;
     }
-    //检测是否有交集，有交集说明没有内存泄漏
+    //如果有交集，说明ptrs中的某些对象的指针地址出现在了leakedObjectPtrs中，这意味着这些对象曾经被认为有可能发生内存泄漏。但由于存在交集，即这些对象的指针地址仍然存在于ptrs中，说明这些对象仍然活跃，没有被释放。因此，可以认为在当前时刻并没有内存泄漏发生。
     if ([leakedObjectPtrs intersectsSet:ptrs]) {
         return YES;
     } else {
@@ -221,16 +230,24 @@ __weak id weakSelf = self;
 + (void)addLeakedObject:(id)object {
     NSAssert([NSThread isMainThread], @"Must be in main thread.");
     
+    //proxy用于代理记录发生内存泄漏的对象信息。
     MLeakedObjectProxy *proxy = [[MLeakedObjectProxy alloc] init];
+    //保存引用到发生内存泄漏的对象。
     proxy.object = object;
+    //将对象的指针地址（uintptr_t类型）转换为NSNumber对象，并保存到proxy.objectPtr属性中
     proxy.objectPtr = @((uintptr_t)object);
+    //获取发生内存泄漏的对象的viewStack，可能是用于记录对象所在的视图层次结构
     proxy.viewStack = [object viewStack];
     static const void *const kLeakedObjectProxyKey = &kLeakedObjectProxyKey;
+    //将proxy对象与object建立关联，以便后续可以通过object来访问到proxy对象。
     objc_setAssociatedObject(object, kLeakedObjectProxyKey, proxy, OBJC_ASSOCIATION_RETAIN);
     
+    //记录发生内存泄漏的对象的指针地址。
     [leakedObjectPtrs addObject:proxy.objectPtr];
     
+    //编译选项 _INTERNAL_MLF_RC_ENABLED 的值，显示不同的警告弹窗
 #if _INTERNAL_MLF_RC_ENABLED
+//提供一个额外的按钮"Retain Cycle"
     [MLeaksMessenger alertWithTitle:@"Memory Leak"
                             message:[NSString stringWithFormat:@"%@", proxy.viewStack]
                            delegate:proxy
@@ -245,7 +262,7 @@ __weak id weakSelf = self;
 
 第一步：构造`MLeakedObjectProxy`对象，给传入的泄漏对象 `object` 关联一个代理即 `proxy`
 
-第二步：通过`objc_setAssociatedObject(object, kLeakedObjectProxyKey, proxy, OBJC_ASSOCIATION_RETAIN)`方法，`object`强持有`proxy`， `proxy`若持有`object`，如果`object`释放，`proxy`也会释放
+第二步：通过`objc_setAssociatedObject(object, kLeakedObjectProxyKey, proxy, OBJC_ASSOCIATION_RETAIN)`方法，`object`强持有`proxy`， `proxy`弱持有`object`，如果`object`释放，`proxy`也会释放
 
 第三步：存储 `proxy.objectPtr`（实际是对象地址）到集合 `leakedObjectPtrs` 里边
 
