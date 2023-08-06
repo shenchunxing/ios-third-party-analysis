@@ -125,10 +125,11 @@ __strong ext_cleanupBlock_t ext_exitBlock_19 __attribute__((cleanup(ext_executeC
 3. `metamacro_concat(ext_exitBlock_, __LINE__)` 会将 `ext_exitBlock` 和当前行号拼接成一个临时的的变量名，例如：`ext_exitBlock_19`。
 
 4. `__attribute__((cleanup(ext_executeCleanupBlock), unused))` 将 `cleanup` 函数设置为 `ext_executeCleanupBlock`；并将当前变量 `ext_exitBlock_19` 标记为 `unused` 来抑制 `Unused variable` 警告。
+5. __attribute__((cleanup))是一种GCC和Clang编译器特有的扩展，用于指定在变量离开作用域时要调用的清理函数。这个特性允许我们在定义一个变量时，指定一个函数，在该变量离开作用域时（即生命周期结束）自动调用该函数。
 
-5. 变量 `ext_exitBlock_19` 的值为 `^{ NSLog("Log when out of scope."); }`，是一个类型为 `ext_cleanupBlock_t` 的 block。
+6. 变量 `ext_exitBlock_19` 的值为 `^{ NSLog("Log when out of scope."); }`，是一个类型为 `ext_cleanupBlock_t` 的 block。
 
-6. 在这个变量离开作用域时，会把上面的 block 的指针传入 `cleanup` 函数，也就是 `ext_executeCleanupBlock`：
+7. 在这个变量离开作用域时，会把上面的 block 的指针传入 `cleanup` 函数，也就是 `ext_executeCleanupBlock`：
 
     ```objectivec
     void ext_executeCleanupBlock (__strong ext_cleanupBlock_t *block) {
